@@ -1,0 +1,450 @@
+{
+  "data_product": {
+    "name": "Comercial",
+    "description": "Producto de datos que centraliza la información transaccional de una empresa distribuidora de productos de limpieza en Ecuador. Integra clientes, productos, ventas y sucursales.",
+    "domain": "Ventas y distribución",
+    "geography": "Ecuador (Quito, Guayaquil, Cuenca)",
+    "source_system": {
+      "type": "MySQL 8.x",
+      "host": "www.bigdataybi.com",
+      "port": 3306,
+      "database": "fake"
+    },
+    "load_strategy": "Batch ETL — columna _loadtime en cada tabla"
+  },
+  "relationships": [
+    {
+      "from_table": "sales",
+      "from_column": "cod_cliente",
+      "to_table": "customers",
+      "to_column": "id_cliente",
+      "type": "many_to_one",
+      "description": "Cada venta pertenece a un cliente"
+    },
+    {
+      "from_table": "sales",
+      "from_column": "cod_producto",
+      "to_table": "products",
+      "to_column": "id_producto",
+      "type": "many_to_one",
+      "description": "Cada línea de venta corresponde a un producto del catálogo"
+    },
+    {
+      "from_table": "sales",
+      "from_column": "cod_sucursal",
+      "to_table": "shops",
+      "to_column": "id_sucursal",
+      "type": "many_to_one",
+      "description": "Cada venta se realiza en una sucursal física"
+    }
+  ],
+  "tables": {
+    "customers": {
+      "description": "Clientes registrados en el sistema. Personas naturales o jurídicas que realizan compras. Un cliente puede tener múltiples facturas.",
+      "business_entity": "Cliente",
+      "row_count": 10,
+      "primary_key": "id_cliente",
+      "etl_load_date": "2025-06-26",
+      "columns": {
+        "id_cliente": {
+          "type": "INT",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": null,
+          "description": "Identificador único del cliente. Clave primaria. Usar para JOIN con sales.cod_cliente.",
+          "business_meaning": "ID interno del cliente en el sistema",
+          "example_values": [1, 2, 3, 10],
+          "valid_values": null,
+          "notes": "Secuencial entero positivo"
+        },
+        "identificacion": {
+          "type": "VARCHAR(45)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Número de cédula de identidad (10 dígitos) o RUC (13 dígitos) ecuatoriano del cliente.",
+          "business_meaning": "Documento de identidad oficial del cliente en Ecuador",
+          "example_values": ["1705251732", "0700652068", "0701613325"],
+          "valid_values": null,
+          "notes": "No tiene restricción UNIQUE. Cédula: 10 dígitos. RUC: 13 dígitos."
+        },
+        "nombre": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Nombre completo del cliente. Puede incluir tratamientos honoríficos (Dr., Sr., Sra., Sr(a).).",
+          "business_meaning": "Nombre legal del cliente para facturación y comunicaciones",
+          "example_values": ["Josefina Alicia Otero Rosas", "Dr. Estela Serrano", "Sr(a). Serafín Leal"],
+          "valid_values": null,
+          "notes": null
+        },
+        "email": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Correo electrónico del cliente. Normalizado a minúsculas en la capa Silver del Data Lake.",
+          "business_meaning": "Canal de contacto digital principal del cliente",
+          "example_values": ["estradaines@icloud.com", "ricardopantoja@gmail.com", "miguellira@yahoo.com"],
+          "valid_values": null,
+          "notes": "Normalizar con LOWER() antes de comparar"
+        },
+        "telefono": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Número de teléfono del cliente. Formato variable: puede incluir código de país (593) o formato local de 10 dígitos. Puede estar vacío (solo espacios).",
+          "business_meaning": "Canal de contacto telefónico del cliente",
+          "example_values": ["(593)958474054", "0919849754", " "],
+          "valid_values": null,
+          "notes": "Usar TRIM(telefono) != '' para excluir valores vacíos"
+        },
+        "direccion": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Dirección postal completa del cliente incluyendo calle, número, interior, ciudad, estado/provincia y código postal.",
+          "business_meaning": "Domicilio del cliente para entregas y correspondencia",
+          "example_values": ["Prolongación Sudán del Sur 590 Edif. 300 , Depto. 542, San Ricardo de la Montaña, NL 34179-3364"],
+          "valid_values": null,
+          "notes": "Campo de texto libre, no estructurado"
+        },
+        "estado": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Estado comercial del cliente. Indica si está habilitado para realizar compras.",
+          "business_meaning": "Habilitación del cliente para operar en el sistema",
+          "example_values": ["activo", "inactivo"],
+          "valid_values": ["activo", "inactivo"],
+          "distribution": {"activo": 8, "inactivo": 2},
+          "notes": "Usar LOWER(TRIM(estado)) para comparaciones seguras"
+        },
+        "_loadtime": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Timestamp de carga ETL. Indica cuándo fue insertado el registro por el proceso de ingesta. Campo de auditoría.",
+          "business_meaning": "Fecha de ingesta — no es una fecha de negocio",
+          "example_values": ["2025-06-26 19:34:48"],
+          "valid_values": null,
+          "notes": "No usar como fecha de alta del cliente"
+        }
+      }
+    },
+    "products": {
+      "description": "Catálogo de productos disponibles para la venta. Artículos de limpieza del hogar y uso industrial distribuidos a través de las sucursales.",
+      "business_entity": "Producto",
+      "row_count": 5,
+      "primary_key": "id_producto",
+      "etl_load_date": "2025-06-26",
+      "columns": {
+        "id_producto": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": true,
+          "foreign_key": null,
+          "description": "Identificador único del producto. Sin restricción PRIMARY KEY en DDL, pero funcionalmente único. Usar para JOIN con sales.cod_producto.",
+          "business_meaning": "ID interno del producto en el catálogo",
+          "example_values": [1, 2, 3, 4, 5],
+          "valid_values": null,
+          "notes": "DDL no define PK formal; el valor es único en la práctica"
+        },
+        "nombre_producto": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Nombre comercial del producto tal como aparece en el catálogo de ventas y facturación.",
+          "business_meaning": "Nombre del artículo visible en facturas y reportes",
+          "example_values": ["Detergente Multiusos", "Limpiador Desinfectante", "Cloro Concentrado", "Limpiavidrios", "Limpiador de Pisos"],
+          "valid_values": ["Detergente Multiusos", "Limpiador Desinfectante", "Cloro Concentrado", "Limpiavidrios", "Limpiador de Pisos"],
+          "notes": null
+        },
+        "descripcion": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Descripción técnica y comercial del producto con características de uso y composición.",
+          "business_meaning": "Información detallada del producto para catálogo y marketing",
+          "example_values": null,
+          "valid_values": null,
+          "notes": "En datos de prueba contiene texto Lorem Ipsum"
+        },
+        "precio_unitario": {
+          "type": "FLOAT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Precio de venta sugerido por unidad en USD según catálogo. Puede diferir del precio efectivamente cobrado en sales.precio_unitario por descuentos.",
+          "business_meaning": "Precio oficial de lista del producto",
+          "example_values": [16.08, 9.54, 7.85, 17.50, 13.25],
+          "valid_values": null,
+          "stats": {"min": 7.85, "max": 17.50, "avg": 13.53},
+          "notes": "En USD. Comparar con sales.precio_unitario para detectar descuentos"
+        },
+        "stock": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Cantidad de unidades disponibles en inventario al momento de la última carga ETL. No se actualiza en tiempo real.",
+          "business_meaning": "Inventario disponible para la venta",
+          "example_values": [299, 249, 118, 314, 446],
+          "valid_values": null,
+          "stats": {"min": 118, "max": 446},
+          "notes": "Snapshot estático; no refleja ventas posteriores al _loadtime"
+        },
+        "marca": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Nombre de la marca o razón social del fabricante/proveedor del producto.",
+          "business_meaning": "Fabricante o proveedor del producto",
+          "example_values": ["Cornejo-Garrido S.A.", "Limón-Saldaña", "Chacón-Salazar", "Velásquez-Valdés S.A.", "Vásquez-Rodríguez y Asociados"],
+          "valid_values": ["Cornejo-Garrido S.A.", "Limón-Saldaña", "Chacón-Salazar", "Velásquez-Valdés S.A.", "Vásquez-Rodríguez y Asociados"],
+          "notes": null
+        },
+        "_loadtime": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Timestamp de carga ETL. Campo de auditoría.",
+          "business_meaning": "Fecha de ingesta — no es una fecha de negocio",
+          "example_values": ["2025-06-26 19:34:32"],
+          "valid_values": null,
+          "notes": null
+        }
+      }
+    },
+    "sales": {
+      "description": "Tabla de hechos principal. Cada fila es una línea de venta: un producto vendido en una fecha, sucursal y precio determinados a un cliente. Una factura puede tener múltiples líneas.",
+      "business_entity": "Línea de venta / Factura",
+      "row_count": 100,
+      "primary_key": null,
+      "date_range": {"start": "2025-05-27", "end": "2025-06-25"},
+      "etl_load_date": "2025-06-26",
+      "distinct_counts": {
+        "cod_factura": 100,
+        "cod_cliente": 10,
+        "cod_producto": 5,
+        "cod_sucursal": 4
+      },
+      "columns": {
+        "cod_factura": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Número de factura comercial. Identifica el documento de venta. Una factura puede tener múltiples filas si incluye varios productos.",
+          "business_meaning": "Número de documento fiscal de la transacción",
+          "example_values": [1, 26, 76, 100],
+          "valid_values": null,
+          "notes": "No es PK; puede repetirse si una factura tiene múltiples productos"
+        },
+        "cod_sucursal": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": "shops.id_sucursal",
+          "description": "Código de la sucursal donde se realizó la venta. Permite analizar desempeño por punto de venta.",
+          "business_meaning": "Punto de venta físico donde se realizó la transacción",
+          "example_values": [1, 2, 3],
+          "valid_values": [1, 2, 3, 4],
+          "notes": "El valor 4 aparece en sales pero no existe en shops (problema de integridad referencial)"
+        },
+        "cod_cliente": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": "customers.id_cliente",
+          "description": "Código del cliente que realizó la compra. Permite análisis de frecuencia, LTV y segmentación de clientes.",
+          "business_meaning": "Cliente que realizó la compra",
+          "example_values": [1, 2, 6, 9],
+          "valid_values": null,
+          "notes": null
+        },
+        "cod_producto": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": "products.id_producto",
+          "description": "Código del producto vendido en esta línea de factura.",
+          "business_meaning": "Producto comercializado en la transacción",
+          "example_values": [1, 2, 3, 4, 5],
+          "valid_values": [1, 2, 3, 4, 5],
+          "notes": null
+        },
+        "fecha_venta": {
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Fecha en que se realizó la transacción de venta (formato YYYY-MM-DD). Usar para análisis de tendencias temporales, ventas por mes/semana/día de la semana.",
+          "business_meaning": "Fecha de la transacción comercial",
+          "example_values": ["2025-05-27", "2025-06-12", "2025-06-25"],
+          "valid_values": null,
+          "stats": {"min": "2025-05-27", "max": "2025-06-25", "period_days": 29},
+          "notes": "Usar DATE_FORMAT(fecha_venta, '%Y-%m') para agrupar por mes"
+        },
+        "cantidad": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Número de unidades del producto vendidas en esta línea de factura.",
+          "business_meaning": "Volumen de unidades por línea de venta",
+          "example_values": [1, 2, 3, 4, 5],
+          "valid_values": null,
+          "stats": {"min": 1, "max": 5, "avg": 2.8},
+          "notes": "Multiplicar por precio_unitario para obtener el subtotal de la línea"
+        },
+        "precio_unitario": {
+          "type": "DOUBLE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Precio efectivamente cobrado por unidad en esta transacción, en USD. Puede diferir del precio de catálogo en products.precio_unitario por descuentos o acuerdos comerciales.",
+          "business_meaning": "Precio real de venta cobrado al cliente",
+          "example_values": [5.41, 14.6, 3.16],
+          "valid_values": null,
+          "stats": {"min": 2.52, "max": 19.92, "avg": 10.65},
+          "notes": "Comparar con products.precio_unitario para calcular descuentos aplicados"
+        },
+        "_loadtime": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Timestamp de carga ETL. Campo de auditoría.",
+          "business_meaning": "Fecha de ingesta — no es una fecha de negocio",
+          "example_values": ["2025-06-26 19:34:51"],
+          "valid_values": null,
+          "notes": "Usar fecha_venta para análisis temporales de negocio"
+        }
+      }
+    },
+    "shops": {
+      "description": "Puntos de venta físicos de la empresa. Las tres sucursales están ubicadas en las principales ciudades del Ecuador, con coordenadas geográficas para análisis de geolocalización.",
+      "business_entity": "Sucursal",
+      "row_count": 3,
+      "primary_key": "id_sucursal",
+      "etl_load_date": "2025-06-26",
+      "columns": {
+        "id_sucursal": {
+          "type": "INT",
+          "nullable": true,
+          "primary_key": true,
+          "foreign_key": null,
+          "description": "Identificador único de la sucursal. Usar para JOIN con sales.cod_sucursal.",
+          "business_meaning": "ID interno del punto de venta",
+          "example_values": [1, 2, 3],
+          "valid_values": [1, 2, 3],
+          "notes": "DDL no define PK formal; el valor es único en la práctica"
+        },
+        "nombre_sucursal": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Nombre comercial de la sucursal, incluyendo ciudad y zona geográfica. Usar en reportes para identificar el punto de venta.",
+          "business_meaning": "Nombre legible de la sucursal para reportes",
+          "example_values": ["Sucursal Quito Sur", "Sucursal Guayaquil Norte", "Sucursal Cuenca Centro"],
+          "valid_values": ["Sucursal Quito Sur", "Sucursal Guayaquil Norte", "Sucursal Cuenca Centro"],
+          "notes": null
+        },
+        "ciudad": {
+          "type": "LONGTEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Ciudad ecuatoriana donde está ubicada la sucursal. Permite análisis geográfico agregado.",
+          "business_meaning": "Ciudad del punto de venta",
+          "example_values": ["Quito", "Guayaquil", "Cuenca"],
+          "valid_values": ["Quito", "Guayaquil", "Cuenca"],
+          "notes": null
+        },
+        "latitud": {
+          "type": "DOUBLE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Coordenada geográfica de latitud de la sucursal en sistema WGS84. Negativo = hemisferio sur.",
+          "business_meaning": "Posición geográfica N-S para mapas y análisis de proximidad",
+          "example_values": [-0.251, -2.1406, -2.8996],
+          "valid_values": null,
+          "notes": "Todas las sucursales tienen latitud negativa (Ecuador está en el hemisferio sur)"
+        },
+        "longitud": {
+          "type": "DOUBLE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Coordenada geográfica de longitud de la sucursal en sistema WGS84. Negativo = oeste del meridiano de Greenwich.",
+          "business_meaning": "Posición geográfica E-O para mapas y análisis de proximidad",
+          "example_values": [-78.5243, -79.8891, -79.0045],
+          "valid_values": null,
+          "notes": "Todas las sucursales están al oeste del meridiano (longitud negativa)"
+        },
+        "_loadtime": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": null,
+          "description": "Timestamp de carga ETL. Campo de auditoría.",
+          "business_meaning": "Fecha de ingesta — no es una fecha de negocio",
+          "example_values": ["2025-06-26 19:34:50"],
+          "valid_values": null,
+          "notes": null
+        }
+      }
+    }
+  },
+  "sql_patterns": {
+    "join_sales_full": "SELECT s.*, c.nombre, c.estado, p.nombre_producto, p.marca, sh.nombre_sucursal, sh.ciudad FROM sales s JOIN customers c ON s.cod_cliente = c.id_cliente JOIN products p ON s.cod_producto = p.id_producto JOIN shops sh ON s.cod_sucursal = sh.id_sucursal",
+    "revenue_by_shop": "SELECT sh.nombre_sucursal, sh.ciudad, ROUND(SUM(s.cantidad * s.precio_unitario),2) AS ingresos FROM sales s JOIN shops sh ON s.cod_sucursal = sh.id_sucursal GROUP BY sh.id_sucursal, sh.nombre_sucursal, sh.ciudad ORDER BY ingresos DESC",
+    "revenue_by_product": "SELECT p.nombre_producto, SUM(s.cantidad) AS unidades, ROUND(SUM(s.cantidad * s.precio_unitario),2) AS ingresos FROM sales s JOIN products p ON s.cod_producto = p.id_producto GROUP BY p.id_producto, p.nombre_producto ORDER BY ingresos DESC",
+    "top_customers": "SELECT c.nombre, COUNT(DISTINCT s.cod_factura) AS facturas, ROUND(SUM(s.cantidad * s.precio_unitario),2) AS gasto_total FROM sales s JOIN customers c ON s.cod_cliente = c.id_cliente GROUP BY c.id_cliente, c.nombre ORDER BY gasto_total DESC",
+    "sales_by_month": "SELECT DATE_FORMAT(fecha_venta,'%Y-%m') AS mes, COUNT(DISTINCT cod_factura) AS facturas, SUM(cantidad) AS unidades, ROUND(SUM(cantidad * precio_unitario),2) AS ingresos FROM sales GROUP BY mes ORDER BY mes",
+    "active_customers_only": "WHERE c.estado = 'activo'",
+    "subtotal_line": "s.cantidad * s.precio_unitario AS subtotal"
+  },
+  "data_quality_issues": [
+    {
+      "table": "sales",
+      "column": "cod_sucursal",
+      "issue": "Valor 4 presente en sales sin correspondencia en shops (orphan FK)",
+      "severity": "warning",
+      "recommendation": "Usar INNER JOIN con shops excluye esas filas. Usar LEFT JOIN para incluirlas."
+    },
+    {
+      "table": "customers",
+      "column": "telefono",
+      "issue": "Algunos valores contienen solo espacios en blanco",
+      "severity": "info",
+      "recommendation": "Filtrar con TRIM(telefono) != '' o NULLIF(TRIM(telefono), '')"
+    },
+    {
+      "table": "products",
+      "column": "id_producto",
+      "issue": "No tiene restricción PRIMARY KEY en el DDL",
+      "severity": "info",
+      "recommendation": "Tratar como PK lógica; verificar unicidad con COUNT vs COUNT DISTINCT"
+    },
+    {
+      "table": "shops",
+      "column": "id_sucursal",
+      "issue": "No tiene restricción PRIMARY KEY en el DDL",
+      "severity": "info",
+      "recommendation": "Tratar como PK lógica"
+    }
+  ]
+}
