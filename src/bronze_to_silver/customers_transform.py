@@ -26,44 +26,44 @@ BRONZE_INPUT = PROJECT_ROOT / "data" / "bronze" / "customers"
 SILVER_OUTPUT = PROJECT_ROOT / "data" / "silver" / "customers"
 QUARANTINE_OUTPUT = PROJECT_ROOT / "data" / "quarantine" / "customers"
 
-# ---------------------------------------------------------------------------
-# DQX quality rules
-# ---------------------------------------------------------------------------
-CHECKS = [
-    # Errors: rows failing these are quarantined and excluded from Silver
-    DQRule(
-        name="customer_id_not_null",
-        criticality="error",
-        check=is_not_null("customer_id"),
-    ),
-    DQRule(
-        name="nombre_not_null_or_empty",
-        criticality="error",
-        check=is_not_null_and_not_empty("nombre"),
-    ),
-    DQRule(
-        name="email_not_null_or_empty",
-        criticality="error",
-        check=is_not_null_and_not_empty("email"),
-    ),
-    # Warnings: flagged in quarantine log but rows still pass to Silver
-    DQRule(
-        name="identificacion_not_empty",
-        criticality="warn",
-        check=is_not_null_and_not_empty("identificacion"),
-    ),
-    DQRule(
-        name="estado_not_null",
-        criticality="warn",
-        check=is_not_null("estado"),
-    ),
-]
+def _build_checks() -> list[DQRule]:
+    """Build DQX checks after SparkSession is available."""
+    return [
+        # Errors: rows failing these are quarantined and excluded from Silver
+        DQRule(
+            name="customer_id_not_null",
+            criticality="error",
+            check=is_not_null("customer_id"),
+        ),
+        DQRule(
+            name="nombre_not_null_or_empty",
+            criticality="error",
+            check=is_not_null_and_not_empty("nombre"),
+        ),
+        DQRule(
+            name="email_not_null_or_empty",
+            criticality="error",
+            check=is_not_null_and_not_empty("email"),
+        ),
+        # Warnings: flagged in quarantine log but rows still pass to Silver
+        DQRule(
+            name="identificacion_not_empty",
+            criticality="warn",
+            check=is_not_null_and_not_empty("identificacion"),
+        ),
+        DQRule(
+            name="estado_not_null",
+            criticality="warn",
+            check=is_not_null("estado"),
+        ),
+    ]
 
 
 def transform_customers() -> int:
     logger.info("=== BRONZE -> SILVER | customers ===")
 
     spark = create_spark_session("BRONZE_to_SILVER_customers")
+    checks = _build_checks()
 
     logger.info(f"Reading Bronze layer from {BRONZE_INPUT}")
     df = spark.read.parquet(str(BRONZE_INPUT))
@@ -93,8 +93,8 @@ def transform_customers() -> int:
     # DQX validation
     # ---------------------------------------------------------------------------
     logger.info("Running DQX quality checks...")
-    engine = DQEngineCore(spark)
-    valid_df, quarantine_df = engine.apply_checks_and_split(df_clean, CHECKS)
+    engine = DQEngineCore(spark) # type: ignore
+    valid_df, quarantine_df = engine.apply_checks_and_split(df_clean, checks)
 
     quarantine_count = quarantine_df.count()
     valid_count = valid_df.count()

@@ -6,4 +6,4 @@ pytest-mock==3.14.0
 pandas==2.2.2
 pyarrow==16.0.0
 ipykernel
-databricks-labs-dqx
+databricks-labs-dqx==0.1.13
