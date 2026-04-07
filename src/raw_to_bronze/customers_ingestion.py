@@ -49,6 +49,7 @@ def ingest_customers() -> int:
     logger.info(f"Saving to {BRONZE_OUTPUT}")
     (
         df.write
+        .mode("overwrite")
         .parquet(str(BRONZE_OUTPUT))
     )
 
